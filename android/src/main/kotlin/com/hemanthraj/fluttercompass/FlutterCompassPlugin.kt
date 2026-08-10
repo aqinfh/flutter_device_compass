@@ -161,6 +161,18 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler {
 
 
         private fun updateRotationCompass(rotationVectorValue: FloatArray) {
+            // Some devices occasionally deliver NaN rotation-vector samples.
+            // Azimuth's init block throws IllegalArgumentException for
+            // non-finite degrees, which escapes onSensorChanged on the main
+            // thread and crashes the host app. The NaN check further down in
+            // notifyCompassChangeListeners runs too late to prevent the
+            // throw, so skip non-finite samples before computing the azimuth.
+            if (!rotationVectorValue[0].isFinite() ||
+                !rotationVectorValue[1].isFinite() ||
+                !rotationVectorValue[2].isFinite()
+            ) {
+                return
+            }
             val rotationVector = RotationVector(rotationVectorValue[0], rotationVectorValue[1], rotationVectorValue[2])
             val displayRotation = getDisplayRotation()
             val magneticAzimuth = MathUtils.calculateAzimuth(rotationVector, displayRotation)
